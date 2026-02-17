@@ -58,13 +58,21 @@ class DropletController:
         Returns:
             Created droplet
         """
+        # Convert SSH key IDs to integers if they're strings
+        ssh_keys = []
+        for key in (config.ssh_keys or []):
+            try:
+                ssh_keys.append(int(key))
+            except (ValueError, TypeError):
+                ssh_keys.append(key)
+        
         droplet = digitalocean.Droplet(
             token=self.token,
             name=config.name,
             region=config.region,
             image=config.image,
             size_slug=config.size,
-            ssh_keys=config.ssh_keys or [],
+            ssh_keys=ssh_keys,
             tags=config.tags or ["sysadmin-ai-next-test"],
             user_data=config.user_data,
         )

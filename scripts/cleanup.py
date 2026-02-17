@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -64,5 +65,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    from pathlib import Path
     sys.exit(main())
