@@ -37,7 +37,7 @@ try:
     import openai
     client = openai.OpenAI(api_key="{api_key}")
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[{{"role": "user", "content": "Say 'OpenAI API test successful'"}}],
         max_tokens=20
     )
@@ -49,12 +49,13 @@ except Exception as e:
 '''
     
     ssh.upload_content(test_script, "/tmp/test_openai.py")
-    result = ssh.exec("python3 /tmp/test_openai.py")
-    
+    result = ssh.exec("python3 /tmp/test_openai.py", timeout=120)
+
+    output = result["stdout"].strip() or result["stderr"].strip()
     return {
         "name": "OpenAI API Connectivity",
-        "passed": result["exit_code"] == 0 and "successful" in result["stdout"],
-        "details": result["stdout"][:100] if result["exit_code"] == 0 else result["stderr"][:100],
+        "passed": result["exit_code"] == 0 and "successful" in result["stdout"].lower(),
+        "details": output[:200] if output else f"exit_code={result['exit_code']} (no output)",
     }
 
 
@@ -64,10 +65,23 @@ def test_sysadmin_ai_install(ssh: SSHDriver) -> list[dict]:
     
     # Create directory
     ssh.exec("mkdir -p /opt/sysadmin-ai-next")
-    
+
+    # Wait for cloud-init to fully finish before touching apt
+    print("         Waiting for cloud-init to finish...")
+    ssh.exec("cloud-init status --wait >/dev/null 2>&1", timeout=300)
+    print("         ✓ cloud-init done")
+
+    # Install pip (not present on bare Ubuntu 24.04)
+    print("         Installing pip (this takes ~2 min on a fresh droplet)...")
+    pip_result = ssh.exec("apt-get update -qq && apt-get install -y -qq python3-pip python3-venv git", timeout=300)
+    if pip_result["exit_code"] != 0:
+        print(f"         ✗ pip install failed: {pip_result['stderr'][:200]}")
+    else:
+        print("         ✓ pip installed")
+
     # Install dependencies
     print("         Installing dependencies...")
-    result = ssh.exec("pip3 install openai pydantic click rich httpx thefuzz pyyaml jinja2 -q")
+    result = ssh.exec("pip3 install --break-system-packages --ignore-installed openai pydantic click rich httpx thefuzz pyyaml jinja2 -q", timeout=300)
     results.append({
         "name": "Dependency Installation",
         "passed": result["exit_code"] == 0,
@@ -76,11 +90,11 @@ def test_sysadmin_ai_install(ssh: SSHDriver) -> list[dict]:
     
     # Clone the repo (in real tests, we'd upload the local code)
     print("         Cloning repository...")
-    result = ssh.exec("cd /opt && git clone https://github.com/noktafa/sysadmin-ai-next.git 2>/dev/null || true")
-    
+    result = ssh.exec("cd /opt && git clone https://github.com/noktafa/sysadmin-ai-next.git 2>/dev/null || true", timeout=120)
+
     # Test import
     print("         Testing imports...")
-    result = ssh.exec("cd /opt/sysadmin-ai-next && pip3 install -e . -q 2>/dev/null; python3 -c 'from sysadmin_ai.policy.engine import PolicyEngine; print(\"OK\")'")
+    result = ssh.exec("cd /opt/sysadmin-ai-next && pip3 install --break-system-packages -e . -q 2>/dev/null; python3 -c 'from sysadmin_ai.policy.engine import PolicyEngine; print(\"OK\")'", timeout=120)
     results.append({
         "name": "PolicyEngine Import",
         "passed": result["exit_code"] == 0 and "OK" in result["stdout"],
