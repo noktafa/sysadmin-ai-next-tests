@@ -44,9 +44,6 @@ python run_tests.py integration
 
 # Run specific test group
 pytest tests/integration/test_policy.py -v
-
-# Build pre-baked snapshots (faster subsequent runs)
-python scripts/build_snapshots.py
 ```
 
 ## Project Structure
@@ -61,12 +58,8 @@ sysadmin-ai-next-tests/
 ├── tests/integration/      # Test suites
 │   ├── test_connectivity.py
 │   ├── test_policy.py
-│   ├── test_sandbox.py
-│   ├── test_plugins.py
-│   ├── test_playbooks.py
-│   └── test_cost.py
+│   └── test_sandbox.py
 ├── scripts/                # Utilities
-│   ├── build_snapshots.py
 │   └── cleanup.py
 └── run_tests.py           # Test runner
 ```
